@@ -4,8 +4,6 @@ import contactsControllers from '../controllers/contactsControllers.js';
 
 import isValidId from '../midelwares/isValidId.js';
 
-import authenticate from '../midelwares/authenticate.js';
-
 import validateBody from '../helpers/validateBody.js';
 
 import {
@@ -15,8 +13,6 @@ import {
 } from '../schemas/contactsSchemas.js';
 
 const contactsRouter = express.Router();
-
-contactsRouter.use(authenticate);
 
 contactsRouter.get('/', contactsControllers.getAllContacts);
 
