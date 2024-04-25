@@ -6,6 +6,8 @@ import authenticate from '../midelwares/authenticate.js';
 
 import validateBody from '../helpers/validateBody.js';
 
+import upload from '../midelwares/upload.js';
+
 import {
   userSignupSchema,
   userSigninSchema,
@@ -35,6 +37,12 @@ authRouter.patch(
   authenticate,
   validateBody(updateSubscriptionSchema),
   authControllers.updateSubscriptionUsers
+);
+authRouter.patch(
+  '/avatars',
+  authenticate,
+  upload.single('avatar'),
+  authControllers.updateAvatar
 );
 
 export default authRouter;
