@@ -11,6 +11,7 @@ import upload from '../midelwares/upload.js';
 import {
   userSignupSchema,
   userSigninSchema,
+  userEmailSchema,
   updateSubscriptionSchema,
 } from '../schemas/usersShemas.js';
 
@@ -20,6 +21,14 @@ authRouter.post(
   '/register',
   validateBody(userSignupSchema),
   authControllers.register
+);
+
+authRouter.get('/verify/:verificationToken', authControllers.verifyEmail);
+
+authRouter.post(
+  '/verify',
+  validateBody(userEmailSchema),
+  authControllers.resendEmailVerify
 );
 
 authRouter.post(

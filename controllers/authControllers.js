@@ -7,6 +7,7 @@ import gravatar from 'gravatar';
 import * as authServices from '../services/authServices.js';
 
 import HttpError from '../helpers/HttpError.js';
+import sendEmail from '../helpers/sendEmail.js';
 
 import ctrlWrapper from '../decorator/ctrlWrapper.js';
 
@@ -32,6 +33,43 @@ const register = async (req, res) => {
     },
   });
 };
+const verifyEmail = async (req, res) => {
+  const { verificationToken } = req.params;
+  const user = await authServices.findUser({ verificationToken });
+
+  if (!user) {
+    throw HttpError(404, 'User not found');
+  }
+
+  await authServices.updateUser(
+    { _id: user._id },
+    { verify: true, verificationToken: ' ' }
+  );
+
+  res.status(200).json({
+    message: 'Verification successful',
+  });
+};
+
+const resendEmailVerify = async (req, res) => {
+  const { email } = req.body;
+  const user = await authServices.findUser({ email });
+  if (!user) {
+    throw HttpError(404, 'User not found');
+  }
+  if (user.verify) {
+    throw HttpError(400, 'Verification has already been passed');
+  }
+  const verifyEmail = {
+    to: email,
+    subject: 'Verify your email',
+    html: `<a href="${BASE_URL}/api/users/verify/${user.verificationToken}" target="_blank" >Click verify email</a>`,
+  };
+  await sendEmail(verifyEmail);
+  res.status(200).json({
+    message: 'Verification email sent',
+  });
+};
 
 const login = async (req, res) => {
   const { email, password } = req.body;
@@ -39,6 +77,9 @@ const login = async (req, res) => {
   const user = await authServices.findUser({ email });
   if (!user) {
     throw HttpError(401, 'Email or password is wrong');
+  }
+  if (!user.verify) {
+    throw HttpError(401, 'Email not verified');
   }
 
   const passwordCompare = await authServices.validatePassword(
@@ -108,6 +149,8 @@ const updateAvatar = async (req, res) => {
 
 export default {
   register: ctrlWrapper(register),
+  verifyEmail: ctrlWrapper(verifyEmail),
+  resendEmailVerify: ctrlWrapper(resendEmailVerify),
   login: ctrlWrapper(login),
   getCurrent: ctrlWrapper(getCurrent),
   logout: ctrlWrapper(logout),
