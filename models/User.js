@@ -1,26 +1,26 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model } from "mongoose";
 
-import { handleSaveError, setUpdateSettings } from './hooks.js';
+import { handleSaveError, setUpdateSettings } from "./hooks.js";
 
-import { emailRegexp } from '../constants/auth-constants.js';
+import { emailRegexp } from "../constants/user-constants.js";
 
 const userSchema = new Schema(
   {
     password: {
       type: String,
       minlength: 6,
-      required: [true, 'Password is required'],
+      required: [true, "Password is required"],
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: [true, "Email is required"],
       unique: true,
       match: emailRegexp,
     },
     subscription: {
       type: String,
-      enum: ['starter', 'pro', 'business'],
-      default: 'starter',
+      enum: ["starter", "pro", "business"],
+      default: "starter",
     },
     token: {
       type: String,
@@ -28,18 +28,25 @@ const userSchema = new Schema(
     },
     avatarURL: {
       type: String,
-      // required: true,
+      required: true,
+    },
+    verify: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
     },
   },
   { versionKey: false, timestamps: true }
 );
 
-userSchema.post('save', handleSaveError);
+userSchema.post("save", handleSaveError);
 
-userSchema.pre('findOneAndUpdate', setUpdateSettings);
+userSchema.pre("findOneAndUpdate", setUpdateSettings);
 
-userSchema.post('findOneAndUpdate', handleSaveError);
+userSchema.post("findOneAndUpdate", handleSaveError);
 
-const User = model('user', userSchema);
+const User = model("user", userSchema);
 
 export default User;
