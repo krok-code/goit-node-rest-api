@@ -1,47 +1,43 @@
-import express from 'express';
+import express from "express";
 
-import contactsControllers from '../controllers/contactsControllers.js';
+import { ctrl } from "../controllers/contactsControllers.js";
+import { schemas } from "../schemas/contactsSchemas.js";
 
-import isValidId from '../midelwares/isValidId.js';
+import authenticate from "../middlewares/authenticate.js";
+import isValidId from "../middlewares/isValidId.js";
+import upload from "../middlewares/upload.js";
 
-import authenticate from '../midelwares/authenticate.js';
-
-import validateBody from '../helpers/validateBody.js';
-
-import {
-  createContactSchema,
-  updateContactSchema,
-  updateFavoriteSchema,
-} from '../schemas/contactsSchemas.js';
+import validateBody from "../decorators/validateBody.js";
 
 const contactsRouter = express.Router();
 
 contactsRouter.use(authenticate);
 
-contactsRouter.get('/', contactsControllers.getAllContacts);
+contactsRouter.get("/", ctrl.getAllContacts);
 
-contactsRouter.get('/:id', isValidId, contactsControllers.getOneContact);
+contactsRouter.get("/:id", isValidId, ctrl.getOneContact);
 
-contactsRouter.delete('/:id', isValidId, contactsControllers.deleteContact);
+contactsRouter.delete("/:id", isValidId, ctrl.deleteContact);
 
 contactsRouter.post(
-  '/',
-  validateBody(createContactSchema),
-  contactsControllers.createContact
+  "/",
+  upload.single("avatar"),
+  validateBody(schemas.createContactSchema),
+  ctrl.createContact
 );
 
 contactsRouter.put(
-  '/:id',
+  "/:id",
   isValidId,
-  validateBody(updateContactSchema),
-  contactsControllers.updateContact
+  validateBody(schemas.updateContactSchema),
+  ctrl.updateContact
 );
 
 contactsRouter.patch(
-  '/:id/favorite',
+  "/:id/favorite",
   isValidId,
-  validateBody(updateFavoriteSchema),
-  contactsControllers.updateStatusContact
+  validateBody(schemas.updateStatusSchema),
+  ctrl.updateStatusContact
 );
 
 export default contactsRouter;

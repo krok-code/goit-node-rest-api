@@ -1,49 +1,49 @@
-import express from 'express';
+import express from "express";
 
-import authControllers from '../controllers/authControllers.js';
+import authSchemas from "../schemas/authSchemas.js";
 
-import authenticate from '../midelwares/authenticate.js';
+import validateBody from "../decorators/validateBody.js";
 
-import validateBody from '../helpers/validateBody.js';
+import authenticate from "../middlewares/authenticate.js";
+import upload from "../middlewares/upload.js";
 
-import {
-  userSignupSchema,
-  userSigninSchema,
-  userEmailSchema,
-  updateSubscriptionSchema,
-} from '../schemas/usersShemas.js';
+import authControllers from "../controllers/authControllers.js";
+
+import { ctrl } from "../controllers/contactsControllers.js";
+
+const {
+  register,
+  login,
+  logout,
+  getCurrent,
+  updateSub,
+  verifyEmail,
+  resendVerifyEmail,
+} = authControllers;
+
+const { subSchema, registerSchema, loginSchema, userEmailSchema } = authSchemas;
 
 const authRouter = express.Router();
 
-authRouter.post(
-  '/register',
-  validateBody(userSignupSchema),
-  authControllers.register
-);
+authRouter.patch("/", authenticate, validateBody(subSchema), updateSub);
 
-authRouter.get('/verify/:verificationToken', authControllers.verifyEmail);
+authRouter.post("/register", validateBody(registerSchema), register);
 
-authRouter.post(
-  '/verify',
-  validateBody(userEmailSchema),
-  authControllers.resendEmailVerify
-);
+authRouter.get("/verify/:verificationToken", verifyEmail);
 
-authRouter.post(
-  '/login',
-  validateBody(userSigninSchema),
-  authControllers.login
-);
+authRouter.post("/verify", validateBody(userEmailSchema), resendVerifyEmail);
 
-authRouter.get('/current', authenticate, authControllers.getCurrent);
+authRouter.post("/login", validateBody(loginSchema), login);
 
-authRouter.post('/logout', authenticate, authControllers.logout);
+authRouter.get("/current", authenticate, getCurrent);
+
+authRouter.post("/logout", authenticate, logout);
 
 authRouter.patch(
-  '/',
+  "/avatars",
   authenticate,
-  validateBody(updateSubscriptionSchema),
-  authControllers.updateSubscriptionUsers
+  upload.single("avatar"),
+  ctrl.updateAvatar
 );
 
 export default authRouter;

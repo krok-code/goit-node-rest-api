@@ -1,88 +1,143 @@
-import * as contactsService from '../services/contactsServices.js';
+import Jimp from "jimp";
 
-import HttpError from '../helpers/HttpError.js';
+import path from "path";
 
-import ctrlWrapper from '../decorator/ctrlWrapper.js';
+import fs from "fs/promises";
 
-const getAllContacts = async (req, res) => {
+import HttpError from "../helpers/HttpError.js";
+
+import ctrlWrapper from "../decorators/ctrlWrapper.js";
+
+import * as contactsService from "../services/contactsServices.js";
+
+import User from "../models/User.js";
+
+const avatarsPath = path.join("public", "avatars");
+
+export const getAllContacts = async (req, res) => {
   const { _id: owner } = req.user;
-  const { page = 1, limit = 10, favorite } = req.query;
+  const { page = 1, limit = 20, favorite } = req.query;
   const skip = (page - 1) * limit;
 
-  const result = await contactsService.listContacts(
-    // { owner, favorite },
-    favorite ? { $and: [{ owner }, { favorite }] } : { owner },
-    {
-      skip,
-      limit,
-    }
-  );
+  const filter = favorite ? { $and: [{ owner }, { favorite }] } : { owner };
+  const contacts = await contactsService.listContacts(filter, { skip, limit });
 
-  if (!result) {
-    throw HttpError(404);
-  }
-
-  res.status(200).json(result);
+  if (!contacts) throw HttpError(404);
+  res.json(contacts);
 };
 
-const getOneContact = async (req, res) => {
+export const getOneContact = async (req, res) => {
   const { id } = req.params;
   const { _id: owner } = req.user;
-  const result = await contactsService.getContact({ _id: id, owner });
-  if (!result) {
-    throw HttpError(404);
-  }
-  res.status(200).json(result);
+  const contact = await contactsService.getContactById({ _id: id, owner });
+  if (!contact) throw HttpError(404);
+  res.json(contact);
 };
 
-const deleteContact = async (req, res) => {
+export const deleteContact = async (req, res) => {
   const { id } = req.params;
   const { _id: owner } = req.user;
   const result = await contactsService.removeContact({ _id: id, owner });
-  if (!result) {
-    throw HttpError(404);
-  }
+  if (!result) throw HttpError(404);
   res.json(result);
 };
 
-const createContact = async (req, res) => {
+export const createContact = async (req, res) => {
   const { _id: owner } = req.user;
-  const result = await contactsService.addContact({ ...req.body, owner });
+  const { name, email, phone } = req.body;
 
-  res.status(201).json(result);
+  const existingContact = await contactsService.getContactByDetails({
+    name,
+    email,
+    phone,
+    owner,
+  });
+
+  if (existingContact) {
+    return res.status(400).json({ message: "Contact already exists" });
+  }
+
+  let avatar;
+  if (req.file) {
+    const { path: oldPath, filename } = req.file;
+    const newPath = path.join(avatarsPath, filename);
+    await fs.rename(oldPath, newPath);
+    avatar = path.join("avatars", filename);
+  }
+
+  const newContactData = { ...req.body, owner };
+  if (avatar) {
+    newContactData.avatar = avatar;
+  }
+
+  const newContact = await contactsService.addContact(newContactData);
+  if (!newContact) {
+    throw HttpError(400);
+  }
+
+  res.status(201).json(newContact);
 };
 
-const updateContact = async (req, res) => {
+export const updateContact = async (req, res) => {
   const { id } = req.params;
   const { _id: owner } = req.user;
-  const result = await contactsService.updateContact(
+  const updatedContact = await contactsService.updateById(
     { _id: id, owner },
-    req.body
+    req.body,
+    {
+      new: true,
+    }
   );
-  if (!result) {
+  if (!updatedContact) {
     throw HttpError(404);
   }
-  res.json(result);
+  res.status(200).json(updatedContact);
 };
 
-const updateStatusContact = async (req, res) => {
+export const updateStatusContact = async (req, res) => {
   const { id } = req.params;
   const { _id: owner } = req.user;
-  const result = await contactsService.updateStatusContact(
+  const favoredContact = await contactsService.updateStatusById(
     { _id: id, owner },
-    req.body
+    req.body,
+    {
+      new: true,
+    }
   );
-  if (!result) {
+  if (!favoredContact) {
     throw HttpError(404, `contact ${id} Not found`);
   }
-  res.status(200).json(result);
+  res.status(200).json(favoredContact);
 };
 
-export default {
+export const updateAvatar = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
+  const { _id } = req.user;
+  const { path: tmpUpload, originalname } = req.file;
+  const img = await Jimp.read(tmpUpload);
+  await img
+    .autocrop()
+    .cover(250, 250, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE)
+    .writeAsync(tmpUpload);
+
+  const filename = `${Date.now()}-${originalname}`;
+  const resultUpload = path.join(avatarsPath, filename);
+  await fs.rename(tmpUpload, resultUpload);
+  const avatarURL = path.join("avatars", filename);
+  await User.findByIdAndUpdate(_id, { avatarURL });
+
+  res.status(200).json({ avatarURL });
+};
+
+export const ctrl = {
   getAllContacts: ctrlWrapper(getAllContacts),
   getOneContact: ctrlWrapper(getOneContact),
-  createContact: ctrlWrapper(createContact),
   deleteContact: ctrlWrapper(deleteContact),
+  createContact: ctrlWrapper(createContact),
   updateContact: ctrlWrapper(updateContact),
+  updateAvatar: ctrlWrapper(updateAvatar),
   updateStatusContact: ctrlWrapper(updateStatusContact),
 };
